@@ -36,7 +36,7 @@ def misi(spec1, spec2, mixture, stft, istft, maxiter=50):
     return f1est, f2est
     
     
-def divmisi_ver1(spec1, spec2, mixture, stft, istft, maxiter=50, gamma=0.1, lm=1e4, epsilon=1e-15):
+def divmisi_ver1(spec1, spec2, mixture, stft, istft, maxiter=50, gamma=0.5, lm=1e4, epsilon=1e-15):
 
     x1 = spec1;
     x2 = spec2;
@@ -66,6 +66,6 @@ def divmisi_ver1(spec1, spec2, mixture, stft, istft, maxiter=50, gamma=0.1, lm=1
         u2 = u2+x2-z2;
 
     
-    f1est = istft(prox_dis(z1-u1, amp1, gamma))
-    f2est = istft(prox_dis(z2-u2, amp2, gamma))
+    f1est = istft(prox_dis(z1, amp1, gamma))
+    f2est = istft(prox_dis(z2, amp2, gamma))
     return f1est, f2est
