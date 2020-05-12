@@ -9,6 +9,7 @@ from torchaudio.functional import complex_norm
 
 from data_utils.wsj02mix_dataset import WSJ02MixDataset
 from utils.stft_related import STFT, iSTFT
+from utils.pre_process import to_normlized_log
 from models.bigru_separator import GRU2SPK
 from utils.evals import msa_pit
 from utils.visualization import result_show
@@ -28,7 +29,7 @@ dataset_base_tr = 'D:/wsj0-2mix/wav8k/min/tr'
 dataset_base_cv = 'D:/wsj0-2mix/wav8k/min/cv'
 
 # training
-batch_size = 32
+batch_size = 64
 num_epoch = 300
 lr = 4e-4
 
@@ -40,8 +41,8 @@ siglen = winlen+shift*(400-5)
 # model
 input_dim = 129
 output_dim = 129
-hidden_dim = 300
-num_layers = 4
+hidden_dim = 600
+num_layers = 3
 
 # save
 dir_name = '../../results/model/'
@@ -84,7 +85,7 @@ for epoch in range(num_epoch):
         
         cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
         am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
-        mask1, mask2 = model(am)
+        mask1, mask2 = model(to_normlized_log(am))
         loss = msa_pit(a1, a2, mask1*am, mask2*am)
         
         model.zero_grad()
@@ -104,7 +105,7 @@ for epoch in range(num_epoch):
             
             cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
             am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
-            mask1, mask2 = model(am)
+            mask1, mask2 = model(to_normlized_log(am))
             loss = msa_pit(a1, a2, mask1*am, mask2*am)
             running_loss.append(loss.item())
             
@@ -121,7 +122,7 @@ for epoch in range(num_epoch):
                 a1[0, ...].detach().clone().to("cpu").numpy(),
                 a2[0, ...].detach().clone().to("cpu").numpy(),
                 (mask1*am)[0, ...].detach().clone().to("cpu").numpy(),
-                (mask1*am)[0, ...].detach().clone().to("cpu").numpy(),
+                (mask2*am)[0, ...].detach().clone().to("cpu").numpy(),
                 )
     
     scheduler.step()
