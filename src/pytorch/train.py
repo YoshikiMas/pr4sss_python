@@ -65,7 +65,7 @@ def train(config):
     cv_loss = []
     start = time.time()
 
-    print('Start training...')
+    print('Start training...' + str(device))
     with detect_anomaly():
 
         for epoch in range(config.num_epoch):
