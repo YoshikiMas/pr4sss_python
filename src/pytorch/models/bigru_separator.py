@@ -25,15 +25,20 @@ class GRU2SPK(nn.Module):
                           )
         self.fc = nn.Linear(hidden_dim*2,
                             output_dim*2)
+        self.init_gru(self.rnn)
         
     def init_gru(self, m):
-        for name, param in m.parameters():
+        for name, param in m.named_parameters():
             if 'weight_ih' in name:
-                init.xavier_uniform_(param.data)
+                for ih in param.chunk(3, 0):
+                    torch.nn.init.xavier_uniform_(ih)
+                    
             elif 'weight_hh' in name:
-                torch.nn.init.orthogonal_(param.data)
+                for hh in param.chunk(3, 0):
+                    torch.nn.init.orthogonal_(hh)
+                    
             else:
-                param.data.fill_(0)
+                torch.nn.init.zeros_(param)
         
 
     def forward(self, x):
