@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 
 class GRU2SPK(nn.Module):
+    
+    
     def __init__(self,
                  input_dim,
                  output_dim,
@@ -22,6 +25,16 @@ class GRU2SPK(nn.Module):
                           )
         self.fc = nn.Linear(hidden_dim*2,
                             output_dim*2)
+        
+    def init_gru(self, m):
+        for name, param in m.parameters():
+            if 'weight_ih' in name:
+                init.xavier_uniform_(param.data)
+            elif 'weight_hh' in name:
+                torch.nn.init.orthogonal_(param.data)
+            else:
+                param.data.fill_(0)
+        
 
     def forward(self, x):
         x = x.permute(0, 2, 1)

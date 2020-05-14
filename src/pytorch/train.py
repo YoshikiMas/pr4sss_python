@@ -50,8 +50,8 @@ model_name = 'bigru_' + str(hidden_dim) + '_' + str(num_layers)
 save_name =  dir_name + model_name + '_' + '{:0=3}.ckpt'
 
 ## STFT/iSTFT
-stft = STFT(shift,winlen)
-istft = iSTFT(shift,winlen)
+stft = STFT(shift, winlen, device=device)
+istft = iSTFT(shift, winlen, device=device)
 
 
 ## Dataset
@@ -75,7 +75,7 @@ tr_loss = []
 cv_loss = []
 start = time.time()
 
-
+print('Start training...')
 for epoch in range(num_epoch):
     
     # Training
