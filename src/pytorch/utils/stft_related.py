@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import torch
 import torchaudio
+from scipy.signal import hann
 
 
 class STFT():
@@ -8,9 +9,11 @@ class STFT():
     def __init__(self, hop_length=None, win_length=None):
         self.hop_length = hop_length
         self.win_length = win_length
+        self.window = torch.from_numpy(hann(win_length))
         
     def __call__(self, x):
-        return torch.stft(x, self.win_length, self.hop_length, self.win_length)
+        return torch.stft(x, self.win_length, self.hop_length, self.win_length,
+                          window=self.window)
     
 class iSTFT():
     
@@ -18,10 +21,12 @@ class iSTFT():
         self.hop_length = hop_length
         self.win_length = win_length
         self.siglen = siglen
+        self.window = torch.from_numpy(hann(win_length))
         
     def __call__(self, x):
         return torchaudio.functional.istft(x, self.win_length, self.hop_length,
-                                           self.win_length, length=self.siglen)
+                                           self.win_length, length=self.siglen,
+                                           window=self.window)
 
 
 if __name__ == '__main__':
