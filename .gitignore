@@ -134,3 +134,4 @@ dmypy.json
 *.pdf
 *.npy
 *.ckpt
+*.yml
