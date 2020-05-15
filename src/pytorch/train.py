@@ -26,8 +26,8 @@ from utils.visualization import result_show
 random.seed(777)  
 np.random.seed(777)  
 torch.manual_seed(777)  
-torch.backends.cudnn.deterministic = False
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 
 ## Train
