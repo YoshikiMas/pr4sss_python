@@ -28,6 +28,7 @@ np.random.seed(777)
 torch.manual_seed(777)  
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
+#torch.backends.cudnn.enabled = False
 
 
 ## Train
@@ -74,20 +75,19 @@ def train(config):
             running_loss = []
             model.train()
             for i, (mix, s1, s2) in enumerate(tr_data_loader):
-
+                
+                model.zero_grad()
                 cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
                 am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
                 mask1, mask2 = model(to_normlized_log(am))
                 loss = msa_pit(a1, a2, mask1*am, mask2*am)
-
-                model.zero_grad()
                 loss.backward()
                 optimizer.step()
 
                 running_loss.append(loss.item())
 
-#                 if i > 1:
-#                     break
+                # if i > 1:
+                #     break
 
 
             tr_loss.append(np.mean(running_loss))    
@@ -104,8 +104,8 @@ def train(config):
                     loss = msa_pit(a1, a2, mask1*am, mask2*am)
                     running_loss.append(loss.item())
 
-#                     if i > 1:
-#                         break                
+                    # if i > 1:
+                    #     break                
 
             cv_loss.append(np.mean(running_loss))
 
