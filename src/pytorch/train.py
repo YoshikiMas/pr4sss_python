@@ -26,13 +26,13 @@ from utils.visualization import result_show
 random.seed(777)  
 np.random.seed(777)  
 torch.manual_seed(777)  
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
 torch.backends.cudnn.deterministic = False
 torch.backends.cudnn.benchmark = True
 
 
 ## Train
 def train(config):
+    device = config.device
     
     ## STFT/iSTFT
     stft = STFT(config.shift, config.winlen, device=device)
@@ -153,6 +153,7 @@ if __name__ == '__main__':
         config = Struct(vars(args), **yaml.load(f, Loader=loader))
 
     config.save_name =  config.dir_name + '/model_{:0=3}.ckpt'
+    config.device = torch.device(config.device)
     
     ## Train
     train(config)
