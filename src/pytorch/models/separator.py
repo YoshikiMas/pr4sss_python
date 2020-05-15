@@ -24,9 +24,9 @@ class BiGRU2SPK(nn.Module):
                           )
         self.fc = nn.Linear(hidden_dim*2,
                             output_dim*2)
-        self.init_gru(self.rnn)
+        self.init_rnn(self.rnn)
         
-    def init_gru(self, m):
+    def init_rnn(self, m):
         for name, param in m.named_parameters():
             if 'weight_ih' in name:
                 for ih in param.chunk(3, 0):
@@ -36,7 +36,7 @@ class BiGRU2SPK(nn.Module):
                 for hh in param.chunk(3, 0):
                     torch.nn.init.orthogonal_(hh)
                     
-            else:
+            elif 'bias' in name:
                 torch.nn.init.zeros_(param)
         
 
@@ -77,9 +77,9 @@ class BiLSTM2SPK(nn.Module):
                           )
         self.fc = nn.Linear(hidden_dim*2,
                             output_dim*2)
-        self.init_gru(self.rnn)
+        self.init_rnn(self.rnn)
         
-    def init_gru(self, m):
+    def init_rnn(self, m):
         for name, param in m.named_parameters():
             if 'weight_ih' in name:
                 for ih in param.chunk(3, 0):
@@ -89,7 +89,7 @@ class BiLSTM2SPK(nn.Module):
                 for hh in param.chunk(3, 0):
                     torch.nn.init.orthogonal_(hh)
                     
-            else:
+            elif 'bias' in name:
                 torch.nn.init.zeros_(param)
         
 
