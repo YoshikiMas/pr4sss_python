@@ -18,7 +18,7 @@ from data_utils.wsj02mix_dataset import WSJ02MixDataset
 from utils.stft_related import STFT, iSTFT
 from utils.pre_process import to_normlized_log
 from models import separator
-from utils.evals import msa_pit
+from utils.evals import msa_pit, dc_loss
 from utils.visualization import result_show
 
 
@@ -53,6 +53,7 @@ def train(config):
     ## Model
     model = getattr(separator,config.model)(config.input_dim,
                     config.output_dim,
+                    config.embed_dim,
                     config.hidden_dim,
                     config.num_layers
                     ).to(device)
@@ -77,17 +78,19 @@ def train(config):
 
                 cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
                 am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
-                mask1, mask2 = model(to_normlized_log(am))
-                loss = msa_pit(a1, a2, mask1*am, mask2*am)
-
+                mask1, mask2, net_embed = model(to_normlized_log(am))
+                weight = torch.sqrt(am/torch.sum(am, dim=[1,2], keepdim=True)
+                                    + 1e-12)
+                loss = (1-config.alpha)*msa_pit(a1, a2, mask1*am, mask2*am) + \
+                    config.alpha*dc_loss(a1, a2, net_embed, weight, device=device)
                 model.zero_grad()
                 loss.backward()
                 optimizer.step()
 
                 running_loss.append(loss.item())
 
-                if i > 2:
-                    break
+                # if i > 1:
+                #     break
 
 
             tr_loss.append(np.mean(running_loss))    
@@ -100,12 +103,16 @@ def train(config):
 
                     cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
                     am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
-                    mask1, mask2 = model(to_normlized_log(am))
-                    loss = msa_pit(a1, a2, mask1*am, mask2*am)
+                    mask1, mask2, net_embed = model(to_normlized_log(am))
+                    weight = torch.sqrt(am/torch.sum(am, dim=[1,2], keepdim=True)
+                                        + 1e-12)
+                    loss = (1-config.alpha)*msa_pit(a1, a2, mask1*am, mask2*am) + \
+                        config.alpha*dc_loss(a1, a2, net_embed,
+                                             weight, device=device)
                     running_loss.append(loss.item())
 
-                    if i > 2:
-                        break                
+                    # if i > 1:
+                    #     break                
 
             cv_loss.append(np.mean(running_loss))
 
@@ -125,7 +132,8 @@ def train(config):
 
             scheduler.step()
             if (epoch+1)%10 == 0:
-                torch.save(model.state_dict(), config.save_name.format(epoch))
+                #torch.save(model.state_dict(), config.save_name.format(epoch))
+                pass
 
 
     print('Finish')
@@ -133,7 +141,7 @@ def train(config):
 if __name__ == '__main__':
     
     ## Params
-    example_dir = '../../results/0515.2020.bigru_3'
+    example_dir = '../../results/0515.2020.bigru_3_chimera'
     parser = ArgumentParser(description='Training script for Deep speech sep.')
     parser.add_argument('--dir_name', default=example_dir, type=str)
     args = parser.parse_args()
