@@ -78,19 +78,18 @@ def train(config):
 
                 cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
                 am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
-                mask1, mask2, net_embed = model(to_normlized_log(am))
+                net_embed = model(to_normlized_log(am))
                 weight = torch.sqrt(am/torch.sum(am, dim=[1,2], keepdim=True)
                                     + 1e-12)
-                loss = (1-config.alpha)*msa_pit(a1, a2, mask1*am, mask2*am) + \
-                    config.alpha*dc_loss(a1, a2, net_embed, weight, device=device)
+                loss = dc_loss(a1, a2, net_embed, weight, device=device)
                 model.zero_grad()
                 loss.backward()
                 optimizer.step()
 
                 running_loss.append(loss.item())
 
-                # if i > 1:
-                #     break
+                if i > 10:
+                    break
 
 
             tr_loss.append(np.mean(running_loss))    
@@ -103,16 +102,14 @@ def train(config):
 
                     cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
                     am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
-                    mask1, mask2, net_embed = model(to_normlized_log(am))
+                    net_embed = model(to_normlized_log(am))
                     weight = torch.sqrt(am/torch.sum(am, dim=[1,2], keepdim=True)
                                         + 1e-12)
-                    loss = (1-config.alpha)*msa_pit(a1, a2, mask1*am, mask2*am) + \
-                        config.alpha*dc_loss(a1, a2, net_embed,
-                                             weight, device=device)
+                    loss = dc_loss(a1, a2, net_embed, weight, device=device)
                     running_loss.append(loss.item())
 
-                    # if i > 1:
-                    #     break                
+                    if i > 1:
+                        break                
 
             cv_loss.append(np.mean(running_loss))
 
@@ -123,12 +120,19 @@ def train(config):
             print('tr loss: {0}'.format(tr_loss[-1]))
             print('cv loss: {0}'.format(cv_loss[-1]))
 
-            result_show(config.dir_name+'/separated.png',
-                        a1[0, ...].detach().clone().to("cpu").numpy(),
-                        a2[0, ...].detach().clone().to("cpu").numpy(),
-                        (mask1*am)[0, ...].detach().clone().to("cpu").numpy(),
-                        (mask2*am)[0, ...].detach().clone().to("cpu").numpy(),
-                        )
+            mask1, mask2 = model.separate(to_normlized_log(am))
+            a1 = a1[0, ...].detach().clone().to("cpu").numpy()
+            a2 = a2[0, ...].detach().clone().to("cpu").numpy()
+            if 'DC' in config.model:
+                am = am[0, ...].detach().clone().to("cpu").numpy()
+                a1est = mask1*am
+                a2est = mask2*am
+            
+            else:
+                a1est = (mask1*am)[0, ...].detach().clone().to("cpu").numpy()
+                a2est = (mask2*am)[0, ...].detach().clone().to("cpu").numpy()
+            
+            result_show(config.dir_name+'/separated.png', a1, a2, a1est, a2est)
 
             scheduler.step()
             if (epoch+1)%10 == 0:
@@ -141,7 +145,7 @@ def train(config):
 if __name__ == '__main__':
     
     ## Params
-    example_dir = '../../results/0515.2020.bigru_3_chimera'
+    example_dir = '../../results/0515.2020.bigru_3_dc'
     parser = ArgumentParser(description='Training script for Deep speech sep.')
     parser.add_argument('--dir_name', default=example_dir, type=str)
     args = parser.parse_args()
