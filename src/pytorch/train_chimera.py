@@ -99,7 +99,7 @@ def train(config):
 
                     cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
                     am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
-                    net_embed = model(to_normlized_log(am))
+                    mask1, mask2, net_embed = model(to_normlized_log(am))
                     weight = torch.sqrt(am/torch.sum(am, dim=[1,2], keepdim=True)
                                         + 1e-12)
                     loss = config.alpha*dc_loss(a1, a2, net_embed, weight, device=device) + \
