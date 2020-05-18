@@ -21,6 +21,7 @@ from models import separator
 from utils.evals import msa_pit, dc_loss
 from utils.visualization import result_show
 
+from utils.phase_reconstruction import misi, divmisi_ver1
 
 ## Init
 random.seed(777)  
@@ -53,7 +54,6 @@ def train(config):
     ## Model
     model = getattr(separator,config.model)(config.input_dim,
                     config.output_dim,
-                    config.embed_dim,
                     config.hidden_dim,
                     config.num_layers
                     ).to(device)
@@ -78,17 +78,17 @@ def train(config):
 
                 cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
                 am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
-                net_embed = model(to_normlized_log(am))
-                weight = torch.sqrt(am/torch.sum(am, dim=[1,2], keepdim=True)
-                                    + 1e-12)
-                loss = dc_loss(a1, a2, net_embed, weight, device=device)
+                mask1, mask2 = model(to_normlized_log(am))
+                # weight = torch.sqrt(am/torch.sum(am, dim=[1,2], keepdim=True)
+                #                     + 1e-12)
+                loss = msa_pit(a1, a2, mask1*am, mask2*am)
                 model.zero_grad()
                 loss.backward()
                 optimizer.step()
 
                 running_loss.append(loss.item())
 
-                if i > 10:
+                if i > 2:
                     break
 
 
@@ -102,10 +102,10 @@ def train(config):
 
                     cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
                     am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
-                    net_embed = model(to_normlized_log(am))
-                    weight = torch.sqrt(am/torch.sum(am, dim=[1,2], keepdim=True)
-                                        + 1e-12)
-                    loss = dc_loss(a1, a2, net_embed, weight, device=device)
+                    mask1, mask2 = model(to_normlized_log(am))
+                    # weight = torch.sqrt(am/torch.sum(am, dim=[1,2], keepdim=True)
+                    #                     + 1e-12)
+                    loss = msa_pit(a1, a2, mask1*am, mask2*am)
                     running_loss.append(loss.item())
 
                     if i > 1:
@@ -120,7 +120,7 @@ def train(config):
             print('tr loss: {0}'.format(tr_loss[-1]))
             print('cv loss: {0}'.format(cv_loss[-1]))
 
-            mask1, mask2 = model.separate(to_normlized_log(am))
+            # mask1, mask2 = model.separate(to_normlized_log(am))
             a1 = a1[0, ...].detach().clone().to("cpu").numpy()
             a2 = a2[0, ...].detach().clone().to("cpu").numpy()
             if 'DC' in config.model:
@@ -138,6 +138,27 @@ def train(config):
             if (epoch+1)%10 == 0:
                 #torch.save(model.state_dict(), config.save_name.format(epoch))
                 pass
+            
+            # eval sisdr
+            print(cm.shape)
+            print(mask1.shape)
+            start_ = time.time()
+            siglen_ = (mix.shape)[1]
+            istft_ = iSTFT(config.shift, config.winlen, siglen_, device=device)
+            s1est, s2est = misi((mask1[...,None]*cm).detach().clone(),
+                                (mask2[...,None]*cm).detach().clone(),
+                                mix.to(device),
+                                stft,
+                                istft_,
+                                maxiter=5)
+            s1est_, s2est_ = misi((mask1[...,None]*cm).detach().clone(),
+                                (mask2[...,None]*cm).detach().clone(),
+                                mix.to(device),
+                                stft,
+                                istft_,
+                                maxiter=5)
+            print('Time for MISI: ' + str(time.time()-start_))
+            
 
 
     print('Finish')
@@ -145,7 +166,7 @@ def train(config):
 if __name__ == '__main__':
     
     ## Params
-    example_dir = '../../results/0515.2020.bigru_3_dc'
+    example_dir = '../../results/0515.2020.bigru_3'
     parser = ArgumentParser(description='Training script for Deep speech sep.')
     parser.add_argument('--dir_name', default=example_dir, type=str)
     args = parser.parse_args()
