@@ -58,7 +58,7 @@ def train(config):
                     config.num_layers
                     ).to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=config.lr)
+    optimizer = getattr(optim,config.optimizer)(model.parameters(), lr=config.lr)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.5)
 
     ## Training
@@ -155,5 +155,9 @@ if __name__ == '__main__':
     config.save_name =  config.dir_name + '/model_{:0=3}.ckpt'
     config.device = torch.device(config.device)
     
+    if hasattr(config, 'optimizer'):
+        pass
+    else:
+        config.optimizer = 'Adam'  
     ## Train
     train(config)
