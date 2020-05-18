@@ -40,6 +40,19 @@ def dc_loss(a1, a2, net_embed, binary_non_slient, n_spks=2, device='cpu'):
                    dim=(-2, -1) ) * 2
     return loss.mean()
 
+def sisdr(s, sest):
+    alpha = (s*sest).sum(1, keepdim=True)/(s*s).sum(1, keepdim=True)
+    s_ = alpha*s
+    r = s_ - sest
+    val = 10*torch.log10((s_*s_).sum(dim=1)/(r*r).sum(dim=1))
+    return val
+
+def sisdr_pi(s1, s2, s1est, s2est):
+    
+    val1 = (sisdr(s1, s1est) + sisdr(s2, s2est))/2
+    val2 = (sisdr(s1, s2est) + sisdr(s2, s1est))/2
+    val = torch.max(val1, val2).mean()
+    return val
 
 if __name__ == '__main__':
 

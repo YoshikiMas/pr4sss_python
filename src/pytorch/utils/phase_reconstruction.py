@@ -4,7 +4,7 @@ from torchaudio.functional import complex_norm
 
 
 def mysign(x):
-    return x.div_(complex_norm(x).add_(1e-16).unsqueeze(-1).expand_as(x))
+    return x.div_(complex_norm(x).add_(1e-15).unsqueeze(-1).expand_as(x))
 
 def projection_consistencysum(x1, x2, mixture, stft, istft):
 
@@ -32,17 +32,22 @@ def misi(spec1, spec2, mixture, stft, istft, maxiter=5):
     return f1est, f2est
 
 def prox_dis(x, amp, gamma):
-    xabs = complex_norm(x).add_(1e-16)[...,None]
+    xabs = complex_norm(x).add_(1e-15)[...,None]
     y = mysign(x)*(xabs-gamma/(amp)+torch.sqrt((xabs-gamma/(amp))**2+4*gamma))/2
     return y
 
+def prox_kl(x, amp, gamma):
+    xabs = complex_norm(x).add_(1e-15)[...,None]
+    y = mysign(x)*(xabs-gamma+torch.sqrt((xabs-gamma)**2+4*gamma*amp))/2
+    return y
+
     
-def divmisi_ver1(spec1, spec2, mixture, stft, istft, maxiter=5, gamma=0.5, lm=1e4):
+def divmisi_ver1(spec1, spec2, mixture, stft, istft, maxiter=5, gamma=1., lm=1e4):
 
     x1 = spec1
     x2 = spec2
-    amp1 = complex_norm(spec1).add_(1e-16)[...,None]
-    amp2 = complex_norm(spec2).add_(1e-16)[...,None]
+    amp1 = complex_norm(spec1).add_(1e-15)[...,None]
+    amp2 = complex_norm(spec2).add_(1e-15)[...,None]
     
     z1 = spec1;
     z2 = spec2;
@@ -52,8 +57,8 @@ def divmisi_ver1(spec1, spec2, mixture, stft, istft, maxiter=5, gamma=0.5, lm=1e
     for i in range(maxiter):
         
         # x-update
-        x1 = prox_dis(z1-u1, amp1, gamma)
-        x2 = prox_dis(z2-u2, amp2, gamma)
+        x1 = prox_kl(z1-u1, amp1, gamma)
+        x2 = prox_kl(z2-u2, amp2, gamma)
         
         # z-update
         v1 = x1+u1
