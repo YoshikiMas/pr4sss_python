@@ -81,6 +81,7 @@ def train(config):
                 am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
                 mask1, mask2 = model(to_normlized_log(am))
                 loss = msa_pit(a1, a2, mask1*am, mask2*am)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
                 loss.backward()
                 optimizer.step()
 
