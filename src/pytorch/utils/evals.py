@@ -12,6 +12,17 @@ def msa_pit(s1, s2, x1, x2):
     loss = torch.min(msa1, msa2).mean()
     return loss
 
+def msal1(s, x):
+    return torch.sum(torch.abs(s-x), [-2,-1])
+
+def msal1_pit(s1, s2, x1, x2):
+    
+    msa1 = msal1(s1, x1) + msal1(s2, x2) 
+    msa2 = msal1(s1, x2) + msal1(s2, x1)
+    
+    loss = torch.min(msa1, msa2).mean()
+    return loss
+
 
 
 def dc_loss(a1, a2, net_embed, binary_non_slient, n_spks=2, device='cpu'):
