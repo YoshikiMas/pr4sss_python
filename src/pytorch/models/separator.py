@@ -121,7 +121,7 @@ class RBiLSTM2SPK(nn.Module):
                  dropout=0.3
                  ):
         
-        super(BiLSTM2SPK, self).__init__()
+        super(RBiLSTM2SPK, self).__init__()
         self.output_dim = output_dim
         self.rnn1 = nn.LSTM(hidden_dim*2,
                           hidden_dim,
@@ -161,14 +161,14 @@ class RBiLSTM2SPK(nn.Module):
         x = x.permute(0, 2, 1)
         batch_size, frame_length, _ = x.size()
         
-        x = self.fcin(x)
+        h0 = self.fcin(x)
         
-        rnn_output, _ = self.rnn1(x)
-        x += rnn_output
-        rnn_output, _ = self.rnn2(x)
-        x += rnn_output
+        rnn_output1, _ = self.rnn1(h0)
+        h1 = h0 + rnn_output1
+        rnn_output2, _ = self.rnn2(h1)
+        h2 = h1 + rnn_output2
         
-        masks = self.fcout(x)
+        masks = self.fcout(h2)
         masks = torch.sigmoid(masks)
         masks = masks.reshape(
             batch_size,
