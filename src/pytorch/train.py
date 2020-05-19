@@ -15,6 +15,7 @@ from torch.autograd import detect_anomaly
 
 from utils.dict_struct import Struct
 from data_utils.wsj02mix_dataset import WSJ02MixDataset
+from data_utils.data_loader import FastDataLoader
 from utils.stft_related import STFT, iSTFT
 from utils.pre_process import to_normlized_log
 from models import separator
@@ -43,12 +44,10 @@ def train(config):
     ## Dataset
     tr_dataset = WSJ02MixDataset(config.dataset_base_tr, siglen=config.siglen)
     cv_dataset = WSJ02MixDataset(config.dataset_base_cv)
-    tr_data_loader = torch.utils.data.DataLoader(tr_dataset,
-                                                 batch_size=config.batch_size,
-                                                 shuffle=True)
-    cv_data_loader = torch.utils.data.DataLoader(cv_dataset,
-                                                 batch_size=1,
-                                                 shuffle=False)
+    tr_data_loader = FastDataLoader(tr_dataset, batch_size=config.batch_size, 
+                                    shuffle=True, num_workers=8)
+    cv_data_loader = FastDataLoader(cv_dataset, batch_size=1,
+                                    shuffle=False, num_workers=1)
 
 
     ## Model

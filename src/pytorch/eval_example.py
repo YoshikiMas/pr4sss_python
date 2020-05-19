@@ -105,7 +105,7 @@ def eval(config):
 if __name__ == '__main__':
     
     ## Params
-    example_dir = '../../results/0515.2020.bilstm_3'
+    example_dir = '../../results/0515.2020.bilstm_4'
     parser = ArgumentParser(description='Training script for Deep speech sep.')
     parser.add_argument('--dir_name', default=example_dir, type=str)
     args = parser.parse_args()
