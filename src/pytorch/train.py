@@ -57,7 +57,9 @@ def train(config):
                     config.num_layers
                     ).to(device)
 
-    optimizer = getattr(optim,config.optimizer)(model.parameters(), lr=config.lr)
+    optimizer = getattr(optim,config.optimizer)(model.parameters(),
+                                                lr=config.lr,
+                                                weight_decay=config.weight_decay)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.5)
 
     ## Training
@@ -158,6 +160,10 @@ if __name__ == '__main__':
     if hasattr(config, 'optimizer'):
         pass
     else:
-        config.optimizer = 'Adam'  
+        config.optimizer = 'Adam'
+    if hasattr(config, 'weight_decay'):
+        pass
+    else:
+        config.weight_decay = 0
     ## Train
     train(config)
