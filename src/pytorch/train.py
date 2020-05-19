@@ -19,7 +19,7 @@ from data_utils.data_loader import FastDataLoader
 from utils.stft_related import STFT, iSTFT
 from utils.pre_process import to_normlized_log
 from models import separator
-from utils.evals import msa_pit, msal1_pit
+from utils import evals
 from utils.visualization import result_show
 
 
@@ -81,7 +81,7 @@ def train(config):
                 cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
                 am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
                 mask1, mask2 = model(to_normlized_log(am))
-                loss = msa_pit(a1, a2, mask1*am, mask2*am)
+                loss = getattr(evals,config.loss)(a1, a2, mask1*am, mask2*am)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 10)
                 loss.backward()
                 optimizer.step()
@@ -103,7 +103,7 @@ def train(config):
                     cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
                     am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
                     mask1, mask2 = model(to_normlized_log(am))
-                    loss = config.loss(a1, a2, mask1*am, mask2*am)
+                    loss = getattr(evals,config.loss)(a1, a2, mask1*am, mask2*am)
                     running_loss.append(loss.item())
 
                     # if i > 1:
@@ -168,6 +168,6 @@ if __name__ == '__main__':
     if hasattr(config, 'loss'):
         pass
     else:
-        config.loss = msa_pit
+        config.loss = 'msa_pit'
     ## Train
     train(config)
