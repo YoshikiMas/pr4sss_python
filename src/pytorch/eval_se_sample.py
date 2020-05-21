@@ -16,6 +16,7 @@ from torch.autograd import detect_anomaly
 
 from utils.dict_struct import Struct
 from data_utils.voicebank_demand_dataset import VoicebankDemandDataset
+from data_utils.data_utils import zero_pad
 from utils.stft_related import STFT, iSTFT
 from utils.pre_process import to_normlized_log
 from models import separator
@@ -38,7 +39,6 @@ def eval(config):
     
     ## STFT/iSTFT
     stft = STFT(config.shift, config.winlen, device=device)
-    istft = iSTFT(config.shift, config.winlen, device=device)
 
 
     ## Dataset
@@ -70,7 +70,8 @@ def eval(config):
             model.eval()
             for i, (s, n, sn) in enumerate(tt_data_loader):
                 
-                s, n, sn = [x.to(device) for x in [s, n, sn]]
+                
+                s, n, sn = [zero_pad(x, config.shift, config.winlen).to(device) for x in [s, n, sn]]
                 cs, cn, csn = [stft(x) for x in [s, n, sn]]
                 amps, ampn, ampsn = [complex_norm(x) for x in [cs, cn, csn]]
                 masks, maskn = model(to_normlized_log(ampsn))
@@ -82,7 +83,9 @@ def eval(config):
                 cnest = (maskn[...,None]*csn)     
                 sest_obs =  istft(csest)
                 sest_misi, _ = misi(csest, cnest, sn, stft, istft)
-                sest_prop, _ = divmisi_ver2(csest, cnest, sn, stft, istft, maxiter=100)
+                sest_prop, _ = divmisi_ver2(csest, cnest, sn, stft, istft,
+                                            gamma=0.1,
+                                            lm=1e4)
 
                 print("=="*32)
                 running_sisdr_obs.append(sisdr(s, sest_obs).mean().item())
@@ -103,7 +106,7 @@ def eval(config):
 if __name__ == '__main__':
     
     ## Params
-    example_dir = '../../results/0515.2020.bilstm_3_se'
+    example_dir = '../../results/0515.2020.bilstm_2_se'
     parser = ArgumentParser(description='Training script for Deep speech sep.')
     parser.add_argument('--dir_name', default=example_dir, type=str)
     args = parser.parse_args()
