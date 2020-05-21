@@ -52,7 +52,7 @@ class VoicebankDemandDataset(torch.utils.data.Dataset):
     
 if __name__ == '__main__':
     
-    path = 'D:/Voicebank_DEMAND'
+    path = 'D:/Voicebank_DEMAND'  # Please chnage to ~~~/Voicebank_DEMAND
     
     # Train
     dataset = VoicebankDemandDataset(path, train=True, siglen=16000)
