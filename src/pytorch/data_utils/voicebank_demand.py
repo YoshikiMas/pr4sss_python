@@ -46,8 +46,8 @@ class VoicebankDemandDataset(torch.utils.data.Dataset):
                 x = x[start_idx:start_idx+self.siglen]
                 
             else:
-                s = torch.cat([s, torch.zeros(self.siglen-xlen).to(self.dtype)])
-                x = torch.cat([x, torch.zeros(self.siglen-xlen).to(self.dtype)])
+                s = torch.cat([s, torch.zeros(self.siglen-xlen, self.dtype)])
+                x = torch.cat([x, torch.zeros(self.siglen-xlen, self.dtype)])
         return s, x
     
 if __name__ == '__main__':
