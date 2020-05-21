@@ -46,9 +46,9 @@ class VoicebankDemandDataset(torch.utils.data.Dataset):
                 x = x[start_idx:start_idx+self.siglen]
                 
             else:
-                s = torch.cat([s, torch.zeros(self.siglen-xlen, self.dtype)])
-                x = torch.cat([x, torch.zeros(self.siglen-xlen, self.dtype)])
-        return s, x
+                s = torch.cat([s, torch.zeros([self.siglen-xlen], dtype=self.dtype)])
+                x = torch.cat([x, torch.zeros([self.siglen-xlen], dtype=self.dtype)])
+        return s, x-s, x
     
 if __name__ == '__main__':
     
@@ -56,13 +56,13 @@ if __name__ == '__main__':
     
     # Train
     dataset = VoicebankDemandDataset(path, train=True, siglen=16000)
-    s, x = dataset[0]
+    s, n, x = dataset[0]
     print(len(dataset) == 11572)
     print(len(s) == 16000 & len(x) == 16000)
     
     # Test
     dataset = VoicebankDemandDataset(path, train=False, siglen=None)
-    s, x = dataset[0]
+    s, n, x = dataset[0]
     print(len(dataset) == 824)
     print(len(s) == len(x))
     print(type(len(s)) == int)
