@@ -4,6 +4,7 @@ import glob
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+from pesq import pesq
 
 from argparse import ArgumentParser
 import re
@@ -67,6 +68,9 @@ def eval(config):
             running_sisdr_obs = []
             running_sisdr_misi = []
             running_sisdr_prop = []
+            running_pesq_obs = []
+            running_pesq_misi = []
+            running_pesq_prop = []
             model.eval()
             for i, (s, n, sn) in enumerate(tt_data_loader):
                 
@@ -84,29 +88,45 @@ def eval(config):
                 sest_obs =  istft(csest)
                 sest_misi, _ = misi(csest, cnest, sn, stft, istft)
                 sest_prop, _ = divmisi_ver2(csest, cnest, sn, stft, istft,
-                                            gamma=0.1,
-                                            lm=1e4)
+                                            maxiter=5,
+                                            gamma=1e-4,
+                                            lm=1e4)  # 8.968638757063761
 
                 print("=="*32)
-                running_sisdr_obs.append(sisdr(s, sest_obs).mean().item())
-                print(running_sisdr_obs[-1])
-                running_sisdr_misi.append(sisdr(s, sest_misi).mean().item())
-                print(running_sisdr_misi[-1])
-                running_sisdr_prop.append(sisdr(s, sest_prop).mean().item())
-                print(running_sisdr_prop[-1])                                
+                tmp = sisdr(s, sn).mean().item()
+                running_sisdr_obs.append(sisdr(s, sest_obs).mean().item()-tmp)
+                running_pesq_obs.append(pesq(16000,
+                                             s[0,:].detach().clone().to("cpu").numpy(),
+                                             sest_obs[0,:].detach().clone().to("cpu").numpy(),
+                                             'wb'))
+                print(running_pesq_obs[-1])
+                
+                running_sisdr_misi.append(sisdr(s, sest_misi).mean().item()-tmp)
+                running_pesq_misi.append(pesq(16000,
+                                              s[0,:].detach().clone().to("cpu").numpy(),
+                                              sest_misi[0,:].detach().clone().to("cpu").numpy(),
+                                              'wb'))
+                print(running_pesq_misi[-1])
+                running_sisdr_prop.append(sisdr(s, sest_prop).mean().item()-tmp)
+                running_pesq_prop.append(pesq(16000,
+                                              s[0,:].detach().clone().to("cpu").numpy(),
+                                              sest_prop[0,:].detach().clone().to("cpu").numpy(),
+                                              'wb'))
+                print(running_pesq_prop[-1])                                
                 
 
-                if i > 10:
-                    break
+                # if i > 10:
+                #     break
 
     print('Finish')
-    return running_sisdr_obs, running_sisdr_misi, running_sisdr_prop
+    return running_sisdr_obs, running_sisdr_misi, running_sisdr_prop, \
+           running_pesq_obs, running_pesq_misi, running_pesq_prop
     
 
 if __name__ == '__main__':
     
     ## Params
-    example_dir = '../../results/0515.2020.bilstm_2_se'
+    example_dir = '../../results/0515.2020.bilstm_3_se'
     parser = ArgumentParser(description='Training script for Deep speech sep.')
     parser.add_argument('--dir_name', default=example_dir, type=str)
     args = parser.parse_args()
@@ -138,12 +158,23 @@ if __name__ == '__main__':
         pass
     else:
         config.weight_decay = 0
+    if hasattr(config, 'comp_ratio'):
+        pass
+    else:
+        config.comp_ratio = 1.
         
     ## Eval
-    running_sisdr_obs, running_sisdr_misi, running_sisdr_prop = eval(config)
+    running_sisdr_obs, running_sisdr_misi, running_sisdr_prop, \
+        running_pesq_obs, running_pesq_misi, running_pesq_prop = eval(config)
+    print("=="*32)
     print("=="*32)
     print(np.mean(running_sisdr_obs))
     print(np.mean(running_sisdr_misi))
     print(np.mean(running_sisdr_prop))
+    print(np.mean(running_pesq_obs))
+    print(np.mean(running_pesq_misi))
+    print(np.mean(running_pesq_prop))
+    print("=="*32)
+    print("=="*32)
 
 

@@ -143,6 +143,10 @@ if __name__ == '__main__':
         pass
     else:
         config.weight_decay = 0
+    if hasattr(config, 'comp_ratio'):
+        pass
+    else:
+        config.comp_ratio = 1.
         
     ## Train
     train(config)
