@@ -1,8 +1,22 @@
 # -*- coding: utf-8 -*-
 import torch
 
-def msa(s, x):
+def msa(s, x, comp_ratio=1., eps=1e-5):
+    s = (s+eps)**comp_ratio
+    x = (x+eps)**comp_ratio
     return torch.sum(torch.pow(s-x, 2), [-2,-1])
+
+def psa(s, x):
+    """
+    Parameters
+    ----------
+    s : batch x freq x time x real x imag
+    x : batch x freq x time x real x imag
+    Returns
+    -------
+    loss: batch 
+    """
+    return torch.sum(torch.pow(s-x, 2), [-3,-2,-1])
 
 def msa_pit(s1, s2, x1, x2):
     

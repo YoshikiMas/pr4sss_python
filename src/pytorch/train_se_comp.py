@@ -18,7 +18,7 @@ from data_utils.voicebank_demand_dataset import VoicebankDemandDataset
 from utils.stft_related import STFT, iSTFT
 from utils.pre_process import to_normlized_log
 from models import separator
-from utils.evals import msa
+from utils.evals import msa, psa
 from utils.visualization import result_show
 
 from utils.phase_reconstruction import misi, divmisi_ver1
@@ -76,14 +76,18 @@ def train(config):
 
                 s, n, sn = [stft(x.to(device)) for x in [s, n, sn]]
                 amps, ampn, ampsn = [complex_norm(x) for x in [s, n, sn]]
-                masks, maskn = model(to_normlized_log(ampsn))
-                loss = torch.mean(config.ratio*msa(amps, masks*ampsn, config.comp_ratio) + \
-                                  (1.-config.ratio)*msa(ampn, maskn*ampsn, config.comp_ratio))
+                maskr, maski = model(to_normlized_log(ampsn))
+                sest = torch.stack([maskr*sn[...,0]-maski*sn[...,1],
+                                     maskr+sn[...,1]+maski*sn[...,0]], -1)
+                loss = torch.mean(psa(s, sest))
                 model.zero_grad()
                 loss.backward()
                 optimizer.step()
 
                 running_loss.append(loss.item())
+                
+                # if i > 10:
+                #     break
 
                 
             tr_loss.append(np.mean(running_loss))
@@ -97,8 +101,8 @@ def train(config):
             # mask1, mask2 = model.separate(to_normlized_log(am))
             amps = amps[0, ...].detach().clone().to("cpu").numpy()
             ampn = ampn[0, ...].detach().clone().to("cpu").numpy()
-            ampsest = (masks*ampsn)[0, ...].detach().clone().to("cpu").numpy()
-            ampnest = (maskn*ampsn)[0, ...].detach().clone().to("cpu").numpy()
+            ampsest = complex_norm(sest)[0, ...].detach().clone().to("cpu").numpy()
+            ampnest = ampn
             
             result_show(config.dir_name+'/separated.png', amps, ampn,
                         ampsest, ampnest, aspect=0.5)
@@ -135,18 +139,21 @@ if __name__ == '__main__':
 
     config.save_name =  config.dir_name + '/model_{:0=3}.ckpt'
     config.device = torch.device(config.device)
-    if hasattr(config, 'optimizer'):
-        pass
-    else:
-        config.optimizer = 'Adam'
-    if hasattr(config, 'weight_decay'):
-        pass
-    else:
-        config.weight_decay = 0
-    if hasattr(config, 'comp_ratio'):
-        pass
-    else:
-        config.comp_ratio = 1.
-        
-    ## Train
-    train(config)
+    
+    if config.complex:
+    
+        if hasattr(config, 'optimizer'):
+            pass
+        else:
+            config.optimizer = 'Adam'
+        if hasattr(config, 'weight_decay'):
+            pass
+        else:
+            config.weight_decay = 0
+        if hasattr(config, 'comp_ratio'):
+            pass
+        else:
+            config.comp_ratio = 1.
+            
+        ## Train
+        train(config)
