@@ -67,14 +67,38 @@ def train(config):
     start = time.time()
 
     print('Start training...' + str(device))
-    with detect_anomaly():
+    # with detect_anomaly():
 
-        for epoch in range(config.num_epoch):
+    for epoch in range(config.num_epoch):
 
-            # Training
-            running_loss = []
-            model.train()
-            for i, (mix, s1, s2) in enumerate(tr_data_loader):
+        # Training
+        running_loss = []
+        model.train()
+        for i, (mix, s1, s2) in enumerate(tr_data_loader):
+
+            cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
+            am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
+            mask1, mask2 = model(to_normlized_log(am))
+            # weight = torch.sqrt(am/torch.sum(am, dim=[1,2], keepdim=True)
+            #                     + 1e-12)
+            loss = msa_pit(a1, a2, mask1*am, mask2*am)
+            model.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            running_loss.append(loss.item())
+
+            if i > 2:
+                break
+
+
+        tr_loss.append(np.mean(running_loss))    
+
+        # Validation
+        running_loss = []
+        model.eval()
+        with torch.no_grad():
+            for i, (mix, s1, s2) in enumerate(cv_data_loader):
 
                 cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
                 am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
@@ -82,85 +106,59 @@ def train(config):
                 # weight = torch.sqrt(am/torch.sum(am, dim=[1,2], keepdim=True)
                 #                     + 1e-12)
                 loss = msa_pit(a1, a2, mask1*am, mask2*am)
-                model.zero_grad()
-                loss.backward()
-                optimizer.step()
-
                 running_loss.append(loss.item())
 
-                if i > 2:
-                    break
+                if i > 1:
+                    break                
+
+        cv_loss.append(np.mean(running_loss))
 
 
-            tr_loss.append(np.mean(running_loss))    
+        # Post-processing
+        print('epoch: {:0=3}'.format(epoch))
+        print('computational time: {0}'.format(time.time()-start))
+        print('tr loss: {0}'.format(tr_loss[-1]))
+        print('cv loss: {0}'.format(cv_loss[-1]))
 
-            # Validation
-            running_loss = []
-            model.eval()
-            with torch.no_grad():
-                for i, (mix, s1, s2) in enumerate(cv_data_loader):
+        # mask1, mask2 = model.separate(to_normlized_log(am))
+        a1 = a1[0, ...].detach().clone().to("cpu").numpy()
+        a2 = a2[0, ...].detach().clone().to("cpu").numpy()
+        if 'DC' in config.model:
+            am = am[0, ...].detach().clone().to("cpu").numpy()
+            a1est = mask1*am
+            a2est = mask2*am
+        
+        else:
+            a1est = (mask1*am)[0, ...].detach().clone().to("cpu").numpy()
+            a2est = (mask2*am)[0, ...].detach().clone().to("cpu").numpy()
+        
+        result_show(config.dir_name+'/separated.png', a1, a2, a1est, a2est)
 
-                    cm, c1, c2 = [stft(x.to(device)) for x in [mix, s1, s2]]
-                    am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
-                    mask1, mask2 = model(to_normlized_log(am))
-                    # weight = torch.sqrt(am/torch.sum(am, dim=[1,2], keepdim=True)
-                    #                     + 1e-12)
-                    loss = msa_pit(a1, a2, mask1*am, mask2*am)
-                    running_loss.append(loss.item())
-
-                    if i > 1:
-                        break                
-
-            cv_loss.append(np.mean(running_loss))
-
-
-            # Post-processing
-            print('epoch: {:0=3}'.format(epoch))
-            print('computational time: {0}'.format(time.time()-start))
-            print('tr loss: {0}'.format(tr_loss[-1]))
-            print('cv loss: {0}'.format(cv_loss[-1]))
-
-            # mask1, mask2 = model.separate(to_normlized_log(am))
-            a1 = a1[0, ...].detach().clone().to("cpu").numpy()
-            a2 = a2[0, ...].detach().clone().to("cpu").numpy()
-            if 'DC' in config.model:
-                am = am[0, ...].detach().clone().to("cpu").numpy()
-                a1est = mask1*am
-                a2est = mask2*am
+        scheduler.step()
+        if (epoch+1)%10 == 0:
+            #torch.save(model.state_dict(), config.save_name.format(epoch))
+            pass
+        
+        # eval sisdr
+        print(cm.shape)
+        print(mask1.shape)
+        start_ = time.time()
+        siglen_ = (mix.shape)[1]
+        istft_ = iSTFT(config.shift, config.winlen, siglen_, device=device)
+        s1est, s2est = misi((mask1[...,None]*cm).detach().clone(),
+                            (mask2[...,None]*cm).detach().clone(),
+                            mix.to(device),
+                            stft,
+                            istft_,
+                            maxiter=5)
+        s1est_, s2est_ = misi((mask1[...,None]*cm).detach().clone(),
+                            (mask2[...,None]*cm).detach().clone(),
+                            mix.to(device),
+                            stft,
+                            istft_,
+                            maxiter=5)
+        print('Time for MISI: ' + str(time.time()-start_))
             
-            else:
-                a1est = (mask1*am)[0, ...].detach().clone().to("cpu").numpy()
-                a2est = (mask2*am)[0, ...].detach().clone().to("cpu").numpy()
-            
-            result_show(config.dir_name+'/separated.png', a1, a2, a1est, a2est)
-
-            scheduler.step()
-            if (epoch+1)%10 == 0:
-                #torch.save(model.state_dict(), config.save_name.format(epoch))
-                pass
-            
-            # eval sisdr
-            print(cm.shape)
-            print(mask1.shape)
-            start_ = time.time()
-            siglen_ = (mix.shape)[1]
-            istft_ = iSTFT(config.shift, config.winlen, siglen_, device=device)
-            s1est, s2est = misi((mask1[...,None]*cm).detach().clone(),
-                                (mask2[...,None]*cm).detach().clone(),
-                                mix.to(device),
-                                stft,
-                                istft_,
-                                maxiter=5)
-            s1est_, s2est_ = misi((mask1[...,None]*cm).detach().clone(),
-                                (mask2[...,None]*cm).detach().clone(),
-                                mix.to(device),
-                                stft,
-                                istft_,
-                                maxiter=5)
-            print('Time for MISI: ' + str(time.time()-start_))
-            
-
-
     print('Finish')
 
 if __name__ == '__main__':

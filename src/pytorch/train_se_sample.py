@@ -65,50 +65,49 @@ def train(config):
     start = time.time()
 
     print('Start training...' + str(device))
-    with detect_anomaly():
+    # with detect_anomaly():
+    for epoch in range(config.num_epoch):
 
-        for epoch in range(config.num_epoch):
+        # Training
+        running_loss = []
+        model.train()
+        for i, (s, n, sn) in enumerate(tr_data_loader):
 
-            # Training
-            running_loss = []
-            model.train()
-            for i, (s, n, sn) in enumerate(tr_data_loader):
+            s, n, sn = [stft(x.to(device)) for x in [s, n, sn]]
+            amps, ampn, ampsn = [complex_norm(x) for x in [s, n, sn]]
+            masks, maskn = model(to_normlized_log(ampsn))
+            loss = torch.mean(config.ratio*msa(amps, masks*ampsn) + \
+                              (1.-config.ratio)*msa(ampn, maskn*ampsn))
+            model.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-                s, n, sn = [stft(x.to(device)) for x in [s, n, sn]]
-                amps, ampn, ampsn = [complex_norm(x) for x in [s, n, sn]]
-                masks, maskn = model(to_normlized_log(ampsn))
-                loss = torch.mean(config.ratio*msa(amps, masks*ampsn) + \
-                                  (1.-config.ratio)*msa(ampn, maskn*ampsn))
-                model.zero_grad()
-                loss.backward()
-                optimizer.step()
+            running_loss.append(loss.item())
 
-                running_loss.append(loss.item())
-
-                if i > 100:
-                    break
-                
-            tr_loss.append(np.mean(running_loss))
-
-
-            # Post-processing
-            print('epoch: {:0=3}'.format(epoch))
-            print('computational time: {0}'.format(time.time()-start))
-            print('tr loss: {0}'.format(tr_loss[-1]))
-
-            # mask1, mask2 = model.separate(to_normlized_log(am))
-            amps = amps[0, ...].detach().clone().to("cpu").numpy()
-            ampn = ampn[0, ...].detach().clone().to("cpu").numpy()
-            ampsest = (masks*ampsn)[0, ...].detach().clone().to("cpu").numpy()
-            ampnest = (maskn*ampsn)[0, ...].detach().clone().to("cpu").numpy()
+            if i > 100:
+                break
             
-            result_show(config.dir_name+'/separated.png', amps, ampn,
-                        ampsest, ampnest, aspect=0.5)
+        tr_loss.append(np.mean(running_loss))
 
-            scheduler.step()
-            if (epoch+1)%10 == 0:
-                torch.save(model.state_dict(), config.save_name.format(epoch))
-                pass            
+
+        # Post-processing
+        print('epoch: {:0=3}'.format(epoch))
+        print('computational time: {0}'.format(time.time()-start))
+        print('tr loss: {0}'.format(tr_loss[-1]))
+
+        # mask1, mask2 = model.separate(to_normlized_log(am))
+        amps = amps[0, ...].detach().clone().to("cpu").numpy()
+        ampn = ampn[0, ...].detach().clone().to("cpu").numpy()
+        ampsest = (masks*ampsn)[0, ...].detach().clone().to("cpu").numpy()
+        ampnest = (maskn*ampsn)[0, ...].detach().clone().to("cpu").numpy()
+        
+        result_show(config.dir_name+'/separated.png', amps, ampn,
+                    ampsest, ampnest, aspect=0.5)
+
+        scheduler.step()
+        if (epoch+1)%10 == 0:
+            torch.save(model.state_dict(), config.save_name.format(epoch))
+            pass            
 
     print('Finish')
     

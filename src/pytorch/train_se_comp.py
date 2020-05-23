@@ -65,52 +65,51 @@ def train(config):
     start = time.time()
 
     print('Start training...' + str(device))
-    with detect_anomaly():
+    # with detect_anomaly():
+    for epoch in range(config.num_epoch):
 
-        for epoch in range(config.num_epoch):
+        # Training
+        running_loss = []
+        model.train()
+        for i, (s, n, sn) in enumerate(tr_data_loader):
 
-            # Training
-            running_loss = []
-            model.train()
-            for i, (s, n, sn) in enumerate(tr_data_loader):
+            s, n, sn = [stft(x.to(device)) for x in [s, n, sn]]
+            amps, ampn, ampsn = [complex_norm(x) for x in [s, n, sn]]
+            maskr, maski = model(to_normlized_log(ampsn))
+            sest = torch.stack([maskr*sn[...,0]-maski*sn[...,1],
+                                 maskr+sn[...,1]+maski*sn[...,0]], -1)
+            loss = torch.mean(psa(s, sest))
+            model.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-                s, n, sn = [stft(x.to(device)) for x in [s, n, sn]]
-                amps, ampn, ampsn = [complex_norm(x) for x in [s, n, sn]]
-                maskr, maski = model(to_normlized_log(ampsn))
-                sest = torch.stack([maskr*sn[...,0]-maski*sn[...,1],
-                                     maskr+sn[...,1]+maski*sn[...,0]], -1)
-                loss = torch.mean(psa(s, sest))
-                model.zero_grad()
-                loss.backward()
-                optimizer.step()
-
-                running_loss.append(loss.item())
-                
-                # if i > 10:
-                #     break
-
-                
-            tr_loss.append(np.mean(running_loss))
-
-
-            # Post-processing
-            print('epoch: {:0=3}'.format(epoch))
-            print('computational time: {0}'.format(time.time()-start))
-            print('tr loss: {0}'.format(tr_loss[-1]))
-
-            # mask1, mask2 = model.separate(to_normlized_log(am))
-            amps = amps[0, ...].detach().clone().to("cpu").numpy()
-            ampn = ampn[0, ...].detach().clone().to("cpu").numpy()
-            ampsest = complex_norm(sest)[0, ...].detach().clone().to("cpu").numpy()
-            ampnest = ampn
+            running_loss.append(loss.item())
             
-            result_show(config.dir_name+'/separated.png', amps, ampn,
-                        ampsest, ampnest, aspect=0.5)
+            # if i > 10:
+            #     break
 
-            scheduler.step()
-            if (epoch+1)%10 == 0:
-                torch.save(model.state_dict(), config.save_name.format(epoch))
-                pass            
+            
+        tr_loss.append(np.mean(running_loss))
+
+
+        # Post-processing
+        print('epoch: {:0=3}'.format(epoch))
+        print('computational time: {0}'.format(time.time()-start))
+        print('tr loss: {0}'.format(tr_loss[-1]))
+
+        # mask1, mask2 = model.separate(to_normlized_log(am))
+        amps = amps[0, ...].detach().clone().to("cpu").numpy()
+        ampn = ampn[0, ...].detach().clone().to("cpu").numpy()
+        ampsest = complex_norm(sest)[0, ...].detach().clone().to("cpu").numpy()
+        ampnest = ampn
+        
+        result_show(config.dir_name+'/separated.png', amps, ampn,
+                    ampsest, ampnest, aspect=0.5)
+
+        scheduler.step()
+        if (epoch+1)%10 == 0:
+            torch.save(model.state_dict(), config.save_name.format(epoch))
+            pass            
 
     print('Finish')
     

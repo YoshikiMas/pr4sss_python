@@ -59,48 +59,46 @@ def eval(config):
     start = time.time()
 
     print('Start training...' + str(device))
-    with detect_anomaly():
-        
-        # Evaluation
-        running_loss = []
-        running_sisdr_obs = []
-        running_sisdr_misi = []
-        running_sisdr_prop = []
-        model.eval()
-        with torch.no_grad():
-            for i, (mix, s1, s2) in enumerate(tt_data_loader):
-                
-                mix, s1, s2 = [x.to(device) for x in [mix, s1, s2]]
-                cm, c1, c2 = [stft(x) for x in [mix, s1, s2]]
-                am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
-                mask1, mask2, _ = model(to_normlized_log(am))
-                loss = msa_pit(a1, a2, mask1*am, mask2*am)
-                running_loss.append(loss.item())
+    # with detect_anomaly():
     
-                # eval sisdr
-                siglen_ = (mix.shape)[1]
-                istft = iSTFT(config.shift, config.winlen, siglen_, device=device)
-                
-                c1est = (mask1[...,None]*cm)
-                c2est = (mask2[...,None]*cm)     
-                s1est_obs, s2est_obs =  [istft(x) for x in [c1est, c2est]]
-                s1est_misi, s2est_misi = misi(c1est, c2est, mix, stft, istft)
-                s1est_prop, s2est_prop = divmisi_ver1(c1est, c2est, mix, stft,
-                                                      istft, maxiter=10)
-                
-                print("=="*32)
-                running_sisdr_obs.append(sisdr_pi(s1, s2, s1est_obs, s2est_obs).mean().item())
-                print(running_sisdr_obs[-1])
-                running_sisdr_misi.append(sisdr_pi(s1, s2, s1est_misi, s2est_misi).mean().item())
-                print(running_sisdr_misi[-1])
-                running_sisdr_prop.append(sisdr_pi(s1, s2, s1est_prop, s2est_prop).mean().item())
-                print(running_sisdr_prop[-1])
+    # Evaluation
+    running_loss = []
+    running_sisdr_obs = []
+    running_sisdr_misi = []
+    running_sisdr_prop = []
+    model.eval()
+    with torch.no_grad():
+        for i, (mix, s1, s2) in enumerate(tt_data_loader):
+            
+            mix, s1, s2 = [x.to(device) for x in [mix, s1, s2]]
+            cm, c1, c2 = [stft(x) for x in [mix, s1, s2]]
+            am, a1, a2 = [complex_norm(x) for x in [cm, c1, c2]]
+            mask1, mask2, _ = model(to_normlized_log(am))
+            loss = msa_pit(a1, a2, mask1*am, mask2*am)
+            running_loss.append(loss.item())
+
+            # eval sisdr
+            siglen_ = (mix.shape)[1]
+            istft = iSTFT(config.shift, config.winlen, siglen_, device=device)
+            
+            c1est = (mask1[...,None]*cm)
+            c2est = (mask2[...,None]*cm)     
+            s1est_obs, s2est_obs =  [istft(x) for x in [c1est, c2est]]
+            s1est_misi, s2est_misi = misi(c1est, c2est, mix, stft, istft)
+            s1est_prop, s2est_prop = divmisi_ver1(c1est, c2est, mix, stft,
+                                                  istft, maxiter=10)
+            
+            print("=="*32)
+            running_sisdr_obs.append(sisdr_pi(s1, s2, s1est_obs, s2est_obs).mean().item())
+            print(running_sisdr_obs[-1])
+            running_sisdr_misi.append(sisdr_pi(s1, s2, s1est_misi, s2est_misi).mean().item())
+            print(running_sisdr_misi[-1])
+            running_sisdr_prop.append(sisdr_pi(s1, s2, s1est_prop, s2est_prop).mean().item())
+            print(running_sisdr_prop[-1])
         
 
-        print('computational time: {0}'.format(time.time()-start))
-        print('cv loss: {0}'.format(np.mean(running_loss)))
-        
-
+    print('computational time: {0}'.format(time.time()-start))
+    print('cv loss: {0}'.format(np.mean(running_loss)))
     print('Finish')
     return running_sisdr_obs, running_sisdr_misi, running_sisdr_prop
 
