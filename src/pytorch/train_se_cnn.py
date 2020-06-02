@@ -82,8 +82,8 @@ def train(config):
 
             running_loss.append(loss.item())
             
-            if i > 50:
-                break
+            # if i > 50:
+            #     break
 
             
         tr_loss.append(np.mean(running_loss))
