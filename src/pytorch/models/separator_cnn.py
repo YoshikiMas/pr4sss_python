@@ -76,6 +76,7 @@ class UNet(nn.Module):
         super(UNet, self).__init__()
         self.encoders = []
         self.decoders = []
+        self.stride = stride
         for idx, channel in enumerate(encoder_channels):
             enc = Encoder(in_channels=channel[0],
                           out_channels=channel[1],
@@ -96,7 +97,8 @@ class UNet(nn.Module):
         
     def pre_pad(self, x):
         bn, fn, tn = x.shape
-        padn = int(np.ceil((tn-1)/32)*32) + 1 - tn
+        base = (self.stride[1])**len(self.encoders)
+        padn = int(np.ceil((tn-1)/base)*base) + 1 - tn
         x = torch.cat((x, torch.zeros((bn, fn, padn), dtype=x.dtype, device=x.device)),
                       axis=2)
         return x, tn
