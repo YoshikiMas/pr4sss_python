@@ -43,12 +43,10 @@ def eval(config):
 
 
     ## Dataset
-    tt_dataset = VoicebankDemandDataset(config.dataset_base,
-                                        train=True,
-                                        siglen=10000)
+    tt_dataset = VoicebankDemandDataset(config.dataset_base)
     tt_data_loader = torch.utils.data.DataLoader(tt_dataset,
-                                                 batch_size=32,
-                                                 shuffle=True)
+                                                 batch_size=1,
+                                                 shuffle=False)
 
 
     ## Model
@@ -65,45 +63,35 @@ def eval(config):
 
         # Evaluation
         running_sisdr_obs = []
-        running_sisdr_misi = []
-        running_sisdr_prop = []
         running_pesq_obs = []
-        running_pesq_misi = []
-        running_pesq_prop = []
         model.eval()
-        times = []
-        start = time.time()
-        for unk in range(5):
-            for i, (s, n, sn) in enumerate(tt_data_loader):
-                times.append(time.time() - start)
-                
-                s, n, sn = [zero_pad(x, config.shift, config.winlen).to(device) for x in [s, n, sn]]
-                cs, cn, csn = [stft(x) for x in [s, n, sn]]
-                amps, ampn, ampsn = [complex_norm(x) for x in [cs, cn, csn]]
-                masks = model(to_normlized_log(ampsn))
-                
-                siglen_ = (sn.shape)[1]
-                istft = iSTFT(config.shift, config.winlen, siglen_, device=device)
-                
-                csest = (masks[...,None]*csn)    
-                sest_obs =  istft(csest)
-                
-                print("=="*32)
-                tmp = sisdr(s, sn).mean().item()
-                running_sisdr_obs.append(sisdr(s, sest_obs).mean().item()-tmp)
-                running_pesq_obs.append(pesq(16000,
-                                              s[0,:].detach().clone().to("cpu").numpy(),
-                                              sest_obs[0,:].detach().clone().to("cpu").numpy(),
-                                              'wb'))
-                print(running_pesq_obs[-1]) 
-                
-    
-                if i > 100:
-                    break
+        for i, (s, n, sn) in enumerate(tt_data_loader):
+            
+            s, n, sn = [zero_pad(x, config.shift, config.winlen).to(device) for x in [s, n, sn]]
+            cs, cn, csn = [stft(x) for x in [s, n, sn]]
+            amps, ampn, ampsn = [complex_norm(x) for x in [cs, cn, csn]]
+            masks = model(to_normlized_log(ampsn))
+            
+            siglen_ = (sn.shape)[1]
+            istft = iSTFT(config.shift, config.winlen, siglen_, device=device)
+            
+            csest = (masks[...,None]*csn)    
+            sest_obs =  istft(csest)
+            
+            print(str(i) + ': ' + "=="*32)
+            tmp = sisdr(s, sn).mean().item()
+            running_sisdr_obs.append(sisdr(s, sest_obs).mean().item()-tmp)
+            running_pesq_obs.append(pesq(16000, s[0,:].detach().clone().to("cpu").numpy(),
+                                          sest_obs[0,:].detach().clone().to("cpu").numpy(),
+                                          'wb'))
+            print(running_pesq_obs[-1]) 
+            
+
+            if i > 50:
+                break
 
     print('Finish')
-    return running_sisdr_obs, running_sisdr_misi, running_sisdr_prop, \
-            running_pesq_obs, running_pesq_misi, running_pesq_prop
+    return running_sisdr_obs, running_pesq_obs
             
             
 if __name__ == '__main__':
@@ -151,10 +139,8 @@ if __name__ == '__main__':
         config.comp_ratio = 1.
         
     ## Eval
-    times = eval(config)
     print('path: ' + str(config.eval_path))
-    running_sisdr_obs, running_sisdr_misi, running_sisdr_prop, \
-        running_pesq_obs, running_pesq_misi, running_pesq_prop = eval(config)
+    running_sisdr_obs, running_pesq_obs = eval(config)
     print("=="*32)
     print("=="*32)
     print(np.mean(running_sisdr_obs))
