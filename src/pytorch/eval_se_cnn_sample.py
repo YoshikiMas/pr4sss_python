@@ -35,7 +35,7 @@ torch.backends.cudnn.benchmark = True
 
 
 ## Train
-def eval(config):
+def evaluate(config):
     device = config.device
     
     ## STFT/iSTFT
@@ -43,7 +43,8 @@ def eval(config):
 
 
     ## Dataset
-    tt_dataset = VoicebankDemandDataset(config.dataset_base)
+    tt_dataset = VoicebankDemandDataset(config.dataset_base,
+                                        train=False)
     tt_data_loader = torch.utils.data.DataLoader(tt_dataset,
                                                  batch_size=1,
                                                  shuffle=False)
@@ -52,7 +53,8 @@ def eval(config):
     ## Model
     model = getattr(separator_cnn,config.model)(
                     encoder_channels=config.encoder_channels,
-                    decoder_channels=config.decoder_channels
+                    decoder_channels=config.decoder_channels,
+                    stride=config.stride
                     ).to(device)
     model.load_state_dict(torch.load(config.eval_path, map_location='cuda'))
 
@@ -87,8 +89,8 @@ def eval(config):
             print(running_pesq_obs[-1]) 
             
 
-            if i > 50:
-                break
+            # if i > 50:
+            #     break
 
     print('Finish')
     return running_sisdr_obs, running_pesq_obs
@@ -97,7 +99,7 @@ def eval(config):
 if __name__ == '__main__':
     
     ## Params
-    example_dir = '../../results/0623.2020.unet_se'
+    example_dir = '../../results/0603.2020.unet_se_psa'
     parser = ArgumentParser(description='Training script for Deep speech sep.')
     parser.add_argument('--dir_name', default=example_dir, type=str)
     args = parser.parse_args()
@@ -113,10 +115,6 @@ if __name__ == '__main__':
         |[-+]?\\.(?:inf|Inf|INF)
         |\\.(?:nan|NaN|NAN))$''', re.X),
         list(u'-+0123456789.'))
-        
-    ## How to handle list of tuple in yaml ...
-    args.encoder_channels = [(1,32), (32,64), (64,64), (64, 64), (64,64)]
-    args.decoder_channels = [(64,64), (128,64), (128, 64), (128,32), (64,16)]
     
     with open(args.dir_name+'/config.yml') as f:
         config = Struct(vars(args), **yaml.load(f, Loader=loader))
@@ -138,9 +136,14 @@ if __name__ == '__main__':
     else:
         config.comp_ratio = 1.
         
+    # CNN parameters
+    config.encoder_channels = eval(config.encoder_channels)
+    config.decoder_channels = eval(config.decoder_channels)
+    config.stride = eval(config.stride)
+    
     ## Eval
     print('path: ' + str(config.eval_path))
-    running_sisdr_obs, running_pesq_obs = eval(config)
+    running_sisdr_obs, running_pesq_obs = evaluate(config)
     print("=="*32)
     print("=="*32)
     print(np.mean(running_sisdr_obs))
