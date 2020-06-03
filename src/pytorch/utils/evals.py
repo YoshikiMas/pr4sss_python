@@ -10,8 +10,8 @@ def psa(s, x):
     """
     Parameters
     ----------
-    s : batch x freq x time x real x imag
-    x : batch x freq x time x real x imag
+    s : batch x freq x time x (real x imag)
+    x : batch x freq x time x (real x imag)
     Returns
     -------
     loss: batch 

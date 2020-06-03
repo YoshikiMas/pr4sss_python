@@ -97,15 +97,19 @@ class UNet(nn.Module):
         
     def pre_pad(self, x):
         bn, fn, tn = x.shape
-        base = (self.stride[1])**len(self.encoders)
-        padn = int(np.ceil((tn-1)/base)*base) + 1 - tn
-        x = torch.cat((x, torch.zeros((bn, fn, padn), dtype=x.dtype, device=x.device)),
+        base_fn = (self.stride[0])**len(self.encoders)
+        base_tn = (self.stride[1])**len(self.encoders)
+        pad_fn = int(np.ceil((fn-1)/base_fn)*base_fn) + 1 - fn
+        pad_tn = int(np.ceil((tn-1)/base_tn)*base_tn) + 1 - tn
+        x = torch.cat((x, torch.zeros((bn, fn, pad_tn), dtype=x.dtype, device=x.device)),
                       axis=2)
-        return x, tn
+        x = torch.cat((x, torch.zeros((bn, pad_fn, tn+pad_tn), dtype=x.dtype, device=x.device)),
+                      axis=1)
+        return x, fn, tn
          
     def forward(self, xin):      
         outputs = []
-        xpad, frames = self.pre_pad(xin)
+        xpad, freqs, frames = self.pre_pad(xin)
         x = xpad[:, None, :, :]
         # encoder
         for i in range(len(self.encoders)):
@@ -117,7 +121,7 @@ class UNet(nn.Module):
         for i in range(1,len(self.decoders)):
             x = self.decoders[i](torch.cat((x, outputs[-i]), dim=1))
         est_mask = torch.sigmoid(self.last_conv(x))
-        return est_mask[:, 0, :, :frames]
+        return est_mask[:, 0, :freqs, :frames]
     
 if __name__ == '__main__':
 
@@ -152,3 +156,11 @@ if __name__ == '__main__':
     T = 2 + 32*10
     mask3 = model(torch.randn((B, K, T), dtype=torch.float32, device=device))
     print(list(mask3.shape) == [B, K, T])
+    
+    # Case 3
+    model = UNet(encoder_channels=[(1,32), (32,64), (64,64), (64, 64), (64,64)],
+                  decoder_channels=[(64,64), (128,64), (128, 64), (128,32), (64,16)],
+                  stride=(2,2)
+                  ).to(device)
+    mask4 = model(torch.randn((B, K, T), dtype=torch.float32, device=device))
+    print(list(mask4.shape) == [B, K, T])
