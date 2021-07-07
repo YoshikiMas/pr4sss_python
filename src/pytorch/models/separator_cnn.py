@@ -157,7 +157,7 @@ if __name__ == '__main__':
     mask3 = model(torch.randn((B, K, T), dtype=torch.float32, device=device))
     print(list(mask3.shape) == [B, K, T])
     
-    # Case 3
+    # Case 4
     model = UNet(encoder_channels=[(1,32), (32,64), (64,64), (64, 64), (64,64)],
                   decoder_channels=[(64,64), (128,64), (128, 64), (128,32), (64,16)],
                   stride=(2,2)
